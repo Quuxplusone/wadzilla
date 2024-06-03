@@ -13,10 +13,36 @@ Wadzilla extracts information from Doom WAD files, including map geometry, textu
 
 ## Usage
 
-To use Wadzilla, execute the following command:
+To use Wadzilla, execute the following commands:
 
 ```bash
-python wadzilla.py --basewad /path/to/doom1.wad 
+git clone https://github.com/scottvr/wadzilla
+cd wadzilla
+curl -O "https://raw.githubusercontent.com/dabignerd/doom-wads/master/zips/Freedoom%20-%20Phase%201%20(v0.12.1).zip"
+unzip "Freedoom%20-%20Phase%201%20(v0.12.1).zip"
+pip install bs4
+python wadzilla.py --basewad FREEDOOM1.WAD
+
+brew install mercurial
+hg clone https://foss.heptapod.net/zilf/zilf
+cd zilf
+brew install --cask dotnet-sdk
+dotnet build Zilf.sln
+cd ..
+
+zilf/bin/Debug/net8.0/Zilf -c output.zil
+zilf/bin/Debug/net8.0/Zapf output.zap
+
+brew install --cask frotz
+echo 'look' | dfrotz -q output.z5
+```
+
+After all that, you should see this output:
+
+```
+FLAT3/SFLR6_4 Room
+The floor is FLAT3 and the ceiling is SFLR6_4. On your left is ASHWALL. On your
+right is SKSNAKE2,STARGR1.
 ```
 
 Mods (PWADs) can also be specified. the argument syntax for specifying IWAD and PWAD is based on the Doom game's command-line options in homage; apologies for their sorta non-intuitive (to me) option names but... y'know, tribute. 
@@ -81,3 +107,4 @@ Just as I finished writing this section I realized I should probably just add a 
 
 ## LICENSES
 wadzilla is um, MIT licensed I guess. I'll put something proper here before anyone learns of Wadzilla's existence. 
+

@@ -161,19 +161,21 @@ class Room:
         
         right_sidedef_data = sidedefs[right_sidedef]
         left_sidedef_data = sidedefs[left_sidedef] if left_sidedef != -1 else None
-        
-        self.wall_textures.append({
-            'right': {
-                'upper': right_sidedef_data[2] if right_sidedef_data[2] != '-' else None,
-                'lower': right_sidedef_data[3] if right_sidedef_data[3] != '-' else None,
-                'middle': right_sidedef_data[4] if right_sidedef_data[4] != '-' else None
-            },
-            'left': {
-                'upper': left_sidedef_data[2] if left_sidedef_data and left_sidedef_data[2] != '-' else None,
-                'lower': left_sidedef_data[3] if left_sidedef_data and left_sidedef_data[3] != '-' else None,
-                'middle': left_sidedef_data[4] if left_sidedef_data and left_sidedef_data[4] != '-' else None
-            }
-        })
+
+        walls = { 'right': {}, 'left': {} }
+        if right_sidedef_data and right_sidedef_data[2] != '-':
+          walls['right']['upper'] = right_sidedef_data[2]
+        if right_sidedef_data and right_sidedef_data[3] != '-':
+          walls['right']['lower'] = right_sidedef_data[3]
+        if right_sidedef_data and right_sidedef_data[4] != '-':
+          walls['right']['middle'] = right_sidedef_data[4]
+        if left_sidedef_data and left_sidedef_data[2] != '-':
+          walls['left']['upper'] = left_sidedef_data[2]
+        if left_sidedef_data and left_sidedef_data[3] != '-':
+          walls['left']['lower'] = left_sidedef_data[3]
+        if left_sidedef_data and left_sidedef_data[4] != '-':
+          walls['left']['middle'] = left_sidedef_data[4]
+        self.wall_textures.append(walls)
 
     def add_thing(self, thing):
         self.things.append(thing)
@@ -191,32 +193,14 @@ class Room:
         description += f" (FLOOR \"{floor_desc}\")\n"
         description += f" (CEILING \"{ceiling_desc}\")\n"
 
-        for thing in self.things:
-            x, y, type = thing
-            thing_desc = thing_type_descriptions.get(type, f"Unknown type {type}")
-            description += f" (THING \"{thing_desc}\" AT ({x}, {y}))\n"
+        ldesc = "The floor is %s and the ceiling is %s." % (floor_desc, ceiling_desc)
+        leftwalls = set(sum((list(wall['left'].values()) for wall in self.wall_textures), []))
+        rightwalls = set(sum((list(wall['right'].values()) for wall in self.wall_textures), []))
+        ldesc += " On your left is %s." % (','.join(sorted(leftwalls)))
+        ldesc += " On your right is %s." % (','.join(sorted(rightwalls)))
+        description += " (LDESC \"%s\")\n" % ldesc
 
-        for wall in self.wall_textures:
-            if wall['right']['upper'] or wall['right']['middle'] or wall['right']['lower']:
-                description += " (WALL-RIGHT"
-                if wall['right']['upper']:
-                    description += f" UPPER \"{wall['right']['upper']}\""
-                if wall['right']['middle']:
-                    description += f" MIDDLE \"{wall['right']['middle']}\""
-                if wall['right']['lower']:
-                    description += f" LOWER \"{wall['right']['lower']}\""
-                description += ")\n"
-            if wall['left']['upper'] or wall['left']['middle'] or wall['left']['lower']:
-                description += " (WALL-LEFT"
-                if wall['left']['upper']:
-                    description += f" UPPER \"{wall['left']['upper']}\""
-                if wall['left']['middle']:
-                    description += f" MIDDLE \"{wall['left']['middle']}\""
-                if wall['left']['lower']:
-                    description += f" LOWER \"{wall['left']['lower']}\""
-                description += ")\n"
-
-        description += " (FLAGS RLANDBIT)\n"
+        description += " (FLAGS RLANDBIT LIGHTBIT ONBIT)\n"
         description += ">\n"
         return description
 
@@ -316,25 +300,36 @@ def main():
         for room_id, room in rooms.items():
             debug_log(f"Room {room_id} vertices: {room.vertexes}")
 
-    for thing in things:
-        x, y, type = thing
+    things = things[:20] # because there's a hard limit in ZIL
+    rooms = {k: v for k,v in list(rooms.items())[:20]} # because there's a hard limit in ZIL
+
+    things_descriptions = ''
+    for obj_id, (x, y, type) in enumerate(things):
         added = False
-        for room in rooms.values():
+        for room_id, room in rooms.items():
             if point_in_polygon(x, y, list(room.vertexes)):
-                room.add_thing(thing)
-                added = True
+                thing_desc = thing_type_descriptions.get(type, f"Unknown type {type}")
+                things_descriptions += (
+                    '<OBJECT OBJECT-%d (LOC ROOM-%d) (DESC "%s") (FLAGS TAKEBIT) (LDESC "There is a(n) %s here.") (SIZE 1)>\n' % (
+                        obj_id, room_id, thing_desc, thing_desc
+                    )
+                )
                 break
-        if not added:
+        else:
             if args.verbose:
                 debug_log(f"Thing at ({x}, {y}) of type {type} not added to any room.")
 
     with open(args.output, 'w') as f:
+        f.write(things_descriptions)
         for room in rooms.values():
             zil_description = room.describe_zil(texture_descriptions, thing_type_descriptions)
             if args.verbose:
                 debug_log(zil_description)
             f.write(zil_description)
             f.write('\n')
+        f.write('<CONSTANT GAME-BANNER "Doom">\n')
+        f.write('<INSERT-FILE "parser">\n')
+        f.write('<ROUTINE GO () <MOVE ,PLAYER ,ROOM-0> <MAIN-LOOP>>\n')
 
     debug_log(f"ZIL descriptions written to {args.output}")
 
